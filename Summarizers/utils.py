@@ -1,14 +1,12 @@
 from rouge import Rouge
 from datasets import load_dataset
 import pandas as pd
-import numpy as np
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
-import regex as re
-import nltk
 from nltk.tokenize import word_tokenize, sent_tokenize
 from nltk.stem import PorterStemmer
 from rouge_score import rouge_scorer
+import os
 
 # Preprocess data
 def cleaned_list_of_sentences(article):
@@ -57,18 +55,21 @@ def calculate_scores(df, summary_col, reference_col):
 
     return df
 
-# Initialize a dictionary to store cumulative sums for metrics
-def sum_metrices(df, metrics_column='rouge_scores'):
+def sum_metrices(df, metrics_column='rouge_scores', results_folder='Results', file_name='metrics_results.csv'):
+    if not os.path.exists(results_folder):
+        os.makedirs(results_folder)
+
+    # Dictionary for metrics sums
     metric_sums = {
         'rouge1': {'precision': 0, 'recall': 0, 'fmeasure': 0},
         'rouge2': {'precision': 0, 'recall': 0, 'fmeasure': 0},
         'rougeL': {'precision': 0, 'recall': 0, 'fmeasure': 0},
         'rougeLsum': {'precision': 0, 'recall': 0, 'fmeasure': 0},
     }
+    
     metrics_count = {key: 0 for key in metric_sums}
 
-    # Iterate through the rows and sum up the metrics
-    # Iterate through the rows and sum up the metrics for each ROUGE category
+    # Sum up the metrics
     for scores in df[metrics_column]:
         for rouge_type, metric in scores.items():
             metric_sums[rouge_type]['precision'] += metric.precision
@@ -76,11 +77,14 @@ def sum_metrices(df, metrics_column='rouge_scores'):
             metric_sums[rouge_type]['fmeasure'] += metric.fmeasure
             metrics_count[rouge_type] += 1
 
-    # Calculate the mean for each metric within each ROUGE category
+    # Calculate the mean of each metric
     metrics_mean = {
         rouge_type: {key: value / metrics_count[rouge_type] for key, value in metric.items()}
         for rouge_type, metric in metric_sums.items()
     }
 
-    # Print the results
+    results_file = os.path.join(results_folder, file_name)    
+    metrics_df = pd.DataFrame(metrics_mean).transpose()
+    metrics_df.to_csv(results_file, index=True)
+    
     return metrics_mean
